@@ -26,6 +26,12 @@ func RemoveRes(name string) error {
 	return nil
 }
 
+// CreateMD initializes DRBD metadata on a fresh device.
+// Runs: drbdadm create-md --force <resource>
+func CreateMD(resource string) error {
+	return runCmd("drbdadm", "create-md", "--force", resource)
+}
+
 // Up brings a DRBD resource up.
 // Runs: drbdadm up <resource>
 func Up(resource string) error {
@@ -42,6 +48,13 @@ func Down(resource string) error {
 // Runs: drbdadm primary <resource>
 func Primary(resource string) error {
 	return runCmd("drbdadm", "primary", resource)
+}
+
+// PrimaryForce forcibly promotes a DRBD resource to primary.
+// Required when both peers are Inconsistent (e.g. initial setup on fresh device).
+// Runs: drbdadm primary --force <resource>
+func PrimaryForce(resource string) error {
+	return runCmd("drbdadm", "primary", "--force", resource)
 }
 
 // Secondary demotes a DRBD resource to secondary role.

@@ -42,9 +42,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /res/write", s.handleResWrite)
 	s.mux.HandleFunc("POST /res/remove", s.handleResRemove)
 
+	s.mux.HandleFunc("POST /drbd/create-md", s.handleDRBDCreateMD)
 	s.mux.HandleFunc("POST /drbd/up", s.handleDRBDUp)
 	s.mux.HandleFunc("POST /drbd/down", s.handleDRBDDown)
 	s.mux.HandleFunc("POST /drbd/primary", s.handleDRBDPrimary)
+	s.mux.HandleFunc("POST /drbd/primary-force", s.handleDRBDPrimaryForce)
 	s.mux.HandleFunc("POST /drbd/secondary", s.handleDRBDSecondary)
 	s.mux.HandleFunc("POST /drbd/resize", s.handleDRBDResize)
 	s.mux.HandleFunc("GET /drbd/status", s.handleDRBDStatus)
@@ -204,6 +206,24 @@ type drbdResourceRequest struct {
 	Resource string `json:"resource"`
 }
 
+func (s *Server) handleDRBDCreateMD(w http.ResponseWriter, r *http.Request) {
+	var req drbdResourceRequest
+	if !decodeBody(w, r, &req) {
+		return
+	}
+	if req.Resource == "" {
+		writeError(w, http.StatusBadRequest, "resource is required")
+		return
+	}
+	s.logger.Info("drbd create-md", "resource", req.Resource)
+	if err := exec.CreateMD(req.Resource); err != nil {
+		s.logger.Error("drbd create-md failed", "err", err)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) handleDRBDUp(w http.ResponseWriter, r *http.Request) {
 	var req drbdResourceRequest
 	if !decodeBody(w, r, &req) {
@@ -252,6 +272,24 @@ func (s *Server) handleDRBDPrimary(w http.ResponseWriter, r *http.Request) {
 	s.logger.Info("drbd primary", "resource", req.Resource)
 	if err := exec.Primary(req.Resource); err != nil {
 		s.logger.Error("drbd primary failed", "err", err)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleDRBDPrimaryForce(w http.ResponseWriter, r *http.Request) {
+	var req drbdResourceRequest
+	if !decodeBody(w, r, &req) {
+		return
+	}
+	if req.Resource == "" {
+		writeError(w, http.StatusBadRequest, "resource is required")
+		return
+	}
+	s.logger.Info("drbd primary --force", "resource", req.Resource)
+	if err := exec.PrimaryForce(req.Resource); err != nil {
+		s.logger.Error("drbd primary --force failed", "err", err)
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
